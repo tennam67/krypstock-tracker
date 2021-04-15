@@ -6,7 +6,7 @@ const CandlestickCryptoIntraday = (props) => {
     const [fetchedData, setData] = useState([]);
     const cryptoCurrency = props.symbol?(props.symbol).toLowerCase():'btcusdt';
     const cryptoCurrencyPrevious = props.symbol?(props.symbol).toUpperCase():'BTCUSDT';
-
+    const [binanceSocket, SetBinanceSocket] = useState(null);
     const [websocketOpen, setWebsocketOpen] = useState(false);
 
     useEffect(() => {
@@ -26,6 +26,7 @@ const CandlestickCryptoIntraday = (props) => {
         fetch(API_Call)
             .then(res => res.json())
             .then(data => {
+
                 const allData = data.map((obj,index) => {
 
                     let timeFix=obj[0]/1000
@@ -56,44 +57,54 @@ const CandlestickCryptoIntraday = (props) => {
         }
     }, [props.timeLength,props.symbol]);
 
-        const fetchCrypto = () => {
-            const binanceSocket = new WebSocket(`wss://stream.binance.com:9443/ws/${cryptoCurrency}@kline_1m`);
-            binanceSocket.onmessage = event => {
+    useEffect(()=>{
+        if(props.symbol){
+            binanceSocket?.close();
+            fetchCrypto();
+        }
+    },[props.symbol])
 
+    const fetchCrypto = () => {
+        SetBinanceSocket(new WebSocket(`wss://stream.binance.com:9443/ws/${cryptoCurrency}@kline_1m`));
+        if(binanceSocket)
+        {
+            binanceSocket.onmessage = event => {
+    
                 // console.log(fetchedData)
                 const lastdata= JSON.parse(event.data);
                 const timestamp = Math.floor(lastdata["E"]/1000);
-
+    
                 if (fetchedData.length > 0 && lastdata["k"]['o'] !== fetchedData[fetchedData.length-1]['open']) {
                     const newData = [...fetchedData]
-
+    
                     fetchedData.push({
-                           // time: lastdata["k"]['t'],
+                            // time: lastdata["k"]['t'],
                             time: timestamp,
                             open: lastdata["k"]['o'],
                             high: lastdata["k"]['h'],
                             low: lastdata["k"]['l'],
                             close: lastdata["k"]['c']
                         })
-
                     setData(newData);
                 }
                 else if (fetchedData.length > 0 && lastdata["k"]['o'] === fetchedData[fetchedData.length-1]['open']) {
-
+    
                     const newData = [...fetchedData]
-
+    
                     fetchedData.pop();
                     fetchedData.push({
-                           // time: lastdata["k"]['t'],
+                            // time: lastdata["k"]['t'],
                             time: timestamp,
                             open: lastdata["k"]['o'],
                             high: lastdata["k"]['h'],
                             low: lastdata["k"]['l'],
                             close: lastdata["k"]['c']
                         })
-
+    
                     setData(newData);
                 }
+            }
+
         }
     }
 
